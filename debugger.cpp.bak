@@ -1,0 +1,653 @@
+#include "debugger.h"
+#include "registers.h"
+
+void Debugger::step()
+{
+	int* state = cpu->get_state();
+	int* cycles = cpu->get_cycles();
+
+	if (*state == cstate::running)
+	{
+		while (*cycles < CYCLES_PER_FRAME)
+		{
+			u16 pc = cpu->get_pc();
+
+			if (pc > 0x3fff)
+			{
+				*state = cstate::debugging;
+				return;
+			}
+
+			for (auto it : bpk->get_breakpoints())
+			{
+				if (bpk->check(pc, it.enabled))
+				{
+					*state = cstate::debugging;
+					return;
+				}
+
+				if (bpk->check(pc, it.enabled))
+				{
+					*state = cstate::debugging;
+					return;
+				}
+			}
+
+			if (*state & cstate::debugging)
+				return;
+
+			cpu->step();
+		}
+
+		*cycles -= CYCLES_PER_FRAME;
+	}
+}
+
+void Debugger::update()
+{
+	if (!sdl->init())
+		return;
+
+	bool show_demo_window = true;
+	bool show_another_window = false;
+	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+	int running = 1;
+
+	//sdl->render_tiles(mem);
+
+	while (running)
+	{
+		ImGuiIO& io = ImGui::GetIO();
+
+		int wheel = 0;
+
+		SDL_Event event;
+
+		while (SDL_PollEvent(&event))
+		{
+			ImGui_ImplSDL2_ProcessEvent(&event);
+			if (event.type == SDL_QUIT)
+				running =false;
+			if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(sdl->get_window()))
+				running = false;
+		}
+
+		sdl->render_tiles(mem);
+		sdl->render_display(mem);
+
+		sdl->begin_frame(clear_color);
+
+		//ImGui::ShowDemoWindow(&show_demo_window);
+		gui();
+		step();
+
+		static bool writebmp = true;
+
+		if (writebmp)
+		{
+			//SDL_Surface* sshot = SDL_CreateRGBSurfaceFrom(sdl->get_tile_pixels(), 128, 128, 32, 128 * 4, 0, 0, 0, 0);
+			//SDL_RenderReadPixels(sdl->get_renderer(), NULL, SDL_PIXELFORMAT_RGBA32, sshot->pixels, sshot->pitch);
+			//SDL_SaveBMP(sshot, "tiles.bmp");
+			//SDL_FreeSurface(sshot);
+			//writebmp = false;
+		}
+
+		ImGui::Begin("Display");
+		ImVec2 dwin_size = ImGui::GetContentRegionAvail();
+		//ImGui::Image(sdl->get_display(), dwin_size);
+		ImGui::End();
+
+		ImGui::Begin("Tiles");
+		ImVec2 twin_size = ImGui::GetContentRegionAvail();
+		//ImGui::Image(sdl->get_tile(), twin_size);
+		ImGui::End();
+
+		sdl->end_frame(io, clear_color);
+	}
+}
+
+void Debugger::gui()
+{
+	static u16 inputaddr = 0;
+	static int lineoffset = 0;
+	static bool is_jump = false;
+	u16 pc = is_jump ? inputaddr : cpu->get_pc();
+
+	show_disassembly(pc, lineoffset);
+	show_registers();
+	show_memory();
+	show_breakpoints();
+	show_buttons(pc, inputaddr, lineoffset, is_jump);
+}
+
+void Debugger::show_disassembly(u16 pc, int& lineoffset)
+{
+	char text[TEXTSIZE] = { 0 };
+	u16 currpc = pc;
+
+	std::vector<std::string> vdasm;
+	ImU32 tablerowcolor = 0xff00ffff;
+	ImU32 tablecolcolor = 0xffe0e0e0;
+
+	ImGuiIO& io = ImGui::GetIO();
+
+	//Show Debugger
+	ImGui::Begin("Debugger", NULL, 0);
+	
+	
+	if (io.MouseWheel != 0 && (pc + lineoffset) > 16 && (pc + lineoffset < 0x10000))
+	{
+		if (ImGui::IsWindowHovered())
+		{
+			if (io.MouseWheel > 0)
+				lineoffset -= 6;
+			else
+				lineoffset += 6;
+
+			//ImGui::SetScrollY(0);
+		}
+	}
+
+	if (lineoffset == 0)
+		ImGui::SetScrollHereY(0);
+
+	if (ImGui::GetWindowPos().y < 65)
+		ImGui::SetWindowPos(ImVec2(ImGui::GetWindowPos().x, 65));
+
+	if (ImGui::GetWindowPos().x < 0)
+		ImGui::SetWindowPos(ImVec2(0, ImGui::GetWindowPos().x));
+
+	if (ImGui::BeginTable("", 3))
+	{
+		ImGui::TableSetupColumn("checkbox", ImGuiTableColumnFlags_WidthFixed, 20.0f);
+		ImGui::TableSetupColumn("offset", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+		ImGui::TableSetupColumn("disasmtext", ImGuiTableColumnFlags_WidthFixed, 110);
+
+		for (int i = 0; i < 256; i++)
+		{
+			int pcaddr = pc + lineoffset;
+			vdentry = disasm(text, pcaddr);
+
+			ImGui::TableNextRow();
+			if (pcaddr == currpc)
+			{
+				ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, tablerowcolor);
+			}
+
+			bool bpcheck = false;
+
+			for (auto& it : bpk->get_breakpoints())
+			{
+				if (it.addr == pcaddr)
+				{
+					bpcheck = true;
+					break;
+				}
+			}
+
+			ImGui::TableNextColumn();
+
+			ImGui::PushID(pc);
+
+			ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0, 255 / 255.0f, 0, 1));
+			if (ImGui::Checkbox("##checkboxbp", &bpcheck))
+			{
+				if (bpcheck)
+				{
+					bpk->add(pcaddr, bp_exec);
+				}
+				else
+				{
+					bpk->remove(pcaddr);
+				}
+			}
+			ImGui::PopStyleColor();
+
+			ImGui::PopID();
+
+			ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, tablecolcolor);
+			ImGui::TableNextColumn(); ImGui::Text("%04X", vdentry[0].offset);
+			ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, tablecolcolor);
+			ImGui::TableNextColumn(); ImGui::Text(vdentry[0].dtext.c_str());
+
+			pc += vdentry[0].size;
+
+			if (stepping)
+			{
+				ImGui::SetScrollHereY(0);
+				stepping = false;
+			}
+		}
+		ImGui::EndTable();
+	}
+	ImGui::End();
+}
+
+void Debugger::show_registers()
+{
+	ImU32 tablecolcolor = 0xffe0e0e0;
+
+	ImGui::Begin("Registers", NULL, 0);
+
+	if (ImGui::BeginTable("Regs", 2))
+	{
+		if (ImGui::GetWindowPos().y < 65)
+			ImGui::SetWindowPos(ImVec2(ImGui::GetWindowPos().x, 65));
+
+		if (ImGui::GetWindowPos().x < 0)
+			ImGui::SetWindowPos(ImVec2(0, ImGui::GetWindowPos().y));
+
+		std::vector<sregdata> reginfo = cpu->get_reginfo();
+
+		char flags[9] = { "........" };
+		char text[32] = "";
+
+		reg_t regs = cpu->get_regs();
+
+		flags[7] = regs.f & FC ? 'C' : '.';
+		flags[6] = regs.f & FN ? 'N' : '.';
+		flags[5] = regs.f & FP ? 'P' : '.';
+		flags[4] = regs.f & FX ? 'X' : '.';
+		flags[3] = regs.f & FH ? 'H' : '.';
+		flags[2] = regs.f & FY ? 'Y' : '.';
+		flags[1] = regs.f & FZ ? 'Z' : '.';
+		flags[0] = regs.f & FS ? 'S' : '.';
+
+		ImGui::TableSetupColumn("regnames", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+		ImGui::TableSetupColumn("regvalues", ImGuiTableColumnFlags_WidthFixed, 80);
+
+		ImGui::TableNextColumn(); ImGui::Text("cycles");
+		ImGui::TableNextColumn(); ImGui::Text("%d", *cpu->get_cycles());
+
+		ImGui::TableNextColumn(); ImGui::Text("flags");
+		ImGui::TableNextColumn(); ImGui::Text("%s", flags);
+
+		ImGui::TableNextColumn(); ImGui::Text("------------");
+		ImGui::TableNextColumn(); ImGui::Text("-----------");
+
+		for (int i = 0; i < 19; i++)
+		{
+			ImGui::TableNextColumn(); ImGui::Text("%11s", reginfo[i].name.c_str());
+			ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, tablecolcolor);
+
+			if (i < 12)
+			{
+				ImGui::TableNextColumn(); ImGui::Text("%04X", *(u16*)reginfo[i].value);
+			}
+			else if (i < 15)
+			{
+				ImGui::TableNextColumn(); ImGui::Text("%02X", *(u8*)reginfo[i].value);
+			}
+			else
+			{
+				ImGui::TableNextColumn(); ImGui::Text("%d", *(int*)reginfo[i].value);
+			}
+		}
+		ImGui::EndTable();
+	}
+	ImGui::End();
+}
+
+void Debugger::show_memory()
+{
+	//Show Memory Editor
+	std::vector<u8> ram = mem->get_ram();
+
+	static MemoryEditor mem_edit;
+	mem_edit.OptShowAscii = false;
+	mem_edit.DrawWindow("Memory", ram.data(), ram.size());
+}
+
+void Debugger::show_breakpoints()
+{
+	static u16 bplistaddr = 0;
+	static bool bpaddchkbox[3] = { false };
+	static char bpaddrtext[5] = { 0 };
+	static bool openpopup = false;
+
+	if (ImGui::Begin("Breakpoints", NULL, 0))
+	{
+		if (ImGui::GetWindowPos().y < 65)
+			ImGui::SetWindowPos(ImVec2(ImGui::GetWindowPos().x, 65));
+		if (ImGui::GetWindowPos().x < 0)
+			ImGui::SetWindowPos(ImVec2(0, ImGui::GetWindowPos().y));
+
+		if (ImGui::ListBoxHeader("", ImVec2(-1, ImGui::GetWindowHeight() - 60)))
+		{
+			static int item_id = 0;
+			int n = 0;
+
+			for (auto it : bpk->get_breakpoints())
+			{
+				char temp[5];
+				snprintf(temp, sizeof(temp), "%04X", it.addr);
+
+				ImGui::PushID(n);
+
+				bool selected = (item_id == n);
+
+				if (ImGui::Selectable(temp, selected))
+				{
+					bplistaddr = it.addr;
+					item_id = n;
+				}
+
+				if (selected)
+					ImGui::SetItemDefaultFocus();
+
+				ImGui::PopID();
+
+				n++;
+			}
+			ImGui::ListBoxFooter();
+		}
+
+		if (ImGui::Button("Add", ImVec2(50, 0)))
+		{
+			memset(bpaddchkbox, false, sizeof(bpaddchkbox));
+			ImGui::OpenPopup("Add Breakpoint");
+			openpopup = true;
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Delete", ImVec2(50, 0)))
+		{
+			for (auto& it : bpk->get_breakpoints())
+			{
+				if (it.addr == bplistaddr)
+				{
+					bpk->remove(bplistaddr);
+				}
+			}
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Edit", ImVec2(50, 0)))
+		{
+			openpopup = true;
+			ImGui::OpenPopup("Add Breakpoint");
+		}
+
+		//Breakpoint PopUp
+		if (ImGui::BeginPopupModal("Add Breakpoint", &openpopup, ImGuiWindowFlags_NoResize))
+		{
+			ImGui::SetWindowSize(ImVec2(230, 120));
+
+			ImGui::Text("Address:");
+			ImGui::SameLine();
+			ImGui::PushItemWidth(55);
+			ImGui::InputText("##bpadd", bpaddrtext, IM_ARRAYSIZE(bpaddrtext));
+			ImGui::PopItemWidth();
+
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			ImGui::Checkbox("Read", &bpaddchkbox[0]);
+			ImGui::SameLine(0, 14);
+			ImGui::Checkbox("Write", &bpaddchkbox[1]);
+			ImGui::SameLine(0, 14);
+			ImGui::Checkbox("Execute", &bpaddchkbox[2]);
+
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			ImGui::Indent(ImGui::GetContentRegionMax().x - 115);
+
+			if (ImGui::Button("OK", ImVec2(50, 0)))
+			{
+				char* end;
+				u16 bpaddr = (u16)strtol(bpaddrtext, &end, 16);
+
+				bpk->add(bpaddr, bp_exec);
+
+				ImGui::CloseCurrentPopup();
+			}
+
+			ImGui::SameLine(0, 5);
+
+			if (ImGui::Button("Cancel", ImVec2(50, 0)))
+				ImGui::CloseCurrentPopup();
+
+			ImGui::EndPopup();
+		}
+	}
+	ImGui::End();
+}
+
+void Debugger::show_buttons(u16 pc, u16& inputaddr, int& lineoffset, bool& is_jump)
+{
+	static char inputtext[5] = "";
+
+	if (ImGui::Begin("Buttons", NULL, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove))
+	{
+		ImGui::SetWindowPos(ImVec2(0, 0));
+		ImGui::SetWindowSize(ImVec2(APP_WIDTH, 60));
+
+		if (ImGui::Button("Run", ImVec2(80, 0)))
+		{
+			cpu->step();
+			stepping = false;
+			lineoffset = 0;
+			is_jump = false;
+			*cpu->get_state() = cstate::running;
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Reset", ImVec2(80, 0)))
+		{
+			cpu->reset();
+			mem->reset();
+			lineoffset = 0;
+			is_jump = false;
+			cpu->set_state(cstate::debugging);
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Step Into", ImVec2(80, 0)))
+		{
+			cpu->step();
+			stepping = true;
+			lineoffset = 0;
+			is_jump = false;
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Step Over", ImVec2(80, 0)))
+		{
+			u8 op = mem->read_byte(pc);
+			disasmdata dasm = get_disasm_entry(op, mem->read_byte(pc + 1));
+
+			if (strstr(dasm.name, "djnz") || strstr(dasm.name, "call") || strstr(dasm.name, "rst"))
+			{
+				u16 prevpc = pc;
+				if (op == 0xc3)
+					cpu->step();
+				else
+				{
+					u16 retpc = pc + dasm.size;
+					cpu->set_state(cstate::running);
+
+					while (cpu->get_pc() != retpc)
+					{
+						cpu->step();
+
+						if (*cpu->get_state() != cstate::running)
+							break;
+					}
+				}
+			}
+			else
+				cpu->step();
+
+			cpu->set_state(cstate::debugging);
+			stepping = true;
+			lineoffset = 0;
+			is_jump = false;
+		}
+
+		ImGui::SameLine();
+
+		ImGui::PushItemWidth(40);
+
+		if (ImGui::InputText("Jump To Address", inputtext, IM_ARRAYSIZE(inputtext), ImGuiInputTextFlags_CharsHexadecimal | ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_EnterReturnsTrue))
+		{
+			std::istringstream ss(inputtext);
+			ss >> std::hex >> inputaddr;
+			is_jump = true;
+			lineoffset = 0;
+		}
+
+		ImGui::PopItemWidth();
+
+		ImGui::End();
+	}
+}
+
+std::vector<disasmentry> Debugger::disasm(const char* text, u16 pc)
+{
+	u8 op = mem->read_byte(pc);
+	u8 b1 = mem->read_byte(pc + 1);
+	u8 b2 = mem->read_byte(pc + 2);
+	u8 b3 = mem->read_byte(pc + 3);
+	u8 b4 = mem->read_byte(pc + 4);
+
+	int size = 0;
+	int asize = 0;
+	const char* name;
+	const char* oper;
+	char line[TEXTSIZE] = { 0 };
+	const char* bytes = "";
+	char* data = (char*)text;
+
+	std::vector<disasmentry> entry;
+	disasmdata dops;
+
+	dops = get_disasm_entry(op, b1);
+
+	name = dops.name;
+	size = dops.size;
+	oper = dops.operand;
+
+	disasmentry e;
+
+	e.offset = pc;
+	e.size = size;
+
+	if (size == 1)
+	{
+		if (strstr(oper, "N/A"))
+			snprintf(data, TEXTSIZE, "%s", name);
+		else
+			snprintf(data, TEXTSIZE, "%-4s %s", name, oper);
+	}
+	else if (size == 2)
+	{
+		if (strstr(oper, "$%02X%02X"))
+		{
+			u16 offset = pc + (s8)b1 + 2;
+			snprintf(data, TEXTSIZE, "%-5s", name);
+			snprintf(data + strlen(data), TEXTSIZE, oper, offset >> 8, offset & 0xff);
+		}
+		else if (strstr(oper, "$%02X"))
+		{
+			snprintf(data, TEXTSIZE, "%-5s", name);
+			snprintf(data + strlen(data), TEXTSIZE, oper, b1);
+		}
+		else if (strstr(oper, "N/A"))
+			snprintf(data, TEXTSIZE, "%s", name);
+		else
+			snprintf(data, TEXTSIZE, "%-4s %s", name, oper);
+	}
+	else if (size == 3)
+	{
+		if (strstr(oper, "$%02X%02X"))
+		{
+			snprintf(data, TEXTSIZE, "%-5s", name);
+			snprintf(data + strlen(data), TEXTSIZE, oper, b2, b1);
+		}
+		else if (strstr(oper, "$%02X"))
+		{
+			snprintf(data, TEXTSIZE, "%-5s", name);
+			snprintf(data + strlen(data), TEXTSIZE, oper, b2);
+		}
+		else
+			snprintf(data, TEXTSIZE, "%-4s %s$%02X%02X", name, oper, b2, b1);
+
+		//snprintf((char*)bytes, TEXTSIZE, "%02X %02X %02X", op, b1, b2);
+	}
+	else if (size == 4)
+	{
+		//if (strstr(oper, "$%02X%02X"))
+		//{
+		//	snprintf(data, TEXTSIZE, "%04X %02X %02X %02X %02X %-5s", pc, op, b1, b2, b3, name);
+		//	snprintf(data + strlen(data), TEXTSIZE, oper, b3, b2);
+		//}
+		//else if (strstr(oper, "+$%02X),$%02X"))
+		//{
+		//	snprintf(data, TEXTSIZE, "%04X %02X %02X %02X %02X %-5s", pc, op, b1, b2, b3, name);
+		//	snprintf(data + strlen(data), TEXTSIZE, oper, b2, b3);
+		//}
+		//else
+		//	snprintf(data, TEXTSIZE, "%04X %02X %02X %02X %02X %-4s %s$%02X%02X", pc, op, b1, b2, b3, name, oper, b3, b2);
+
+		//snprintf((char*)bytes, TEXTSIZE, "%02X %02X %02X %02X", op, b1, b2, b3);
+	}
+
+	if (strstr(name, "pre"))
+	{
+		e.size = 2;
+		snprintf(data, TEXTSIZE, "%-5s", name);
+	}
+
+	e.dtext = data;
+	entry.push_back(e);
+
+	return entry;
+}
+
+disasmdata Debugger::get_disasm_entry(u8 op, u8 b1)
+{
+	disasmdata dops;
+
+	if (op == 0xcb || op == 0xdd || op == 0xed || op == 0xfd)
+	{
+		dops = mdisasm[op][b1];
+	}
+	else
+	{
+		dops = mdisasm[0x00][op];
+	}
+
+	return dops;
+}
+
+void* Debugger::get_reg(int i)
+{
+	switch (i)
+	{
+	case 0:	return &regt.pc;
+	case 1:	return &regt.sp;
+	case 2:	return &regt.af;
+	case 3:	return &regt.bc;
+	case 4:	return &regt.de;
+	case 5:	return &regt.hl;
+	case 6:	return &regt.saf;
+	case 7:	return &regt.sbc;
+	case 8:	return &regt.sde;
+	case 9:	return &regt.shl;
+	case 10: return &regt.wz;
+	case 11: return &regt.r;
+	case 12: return &regt.i;
+	case 13: return (void*)cpu->get_im();
+	case 14: return (void*)cpu->get_iff1();
+	case 15: return (void*)cpu->get_iff2();
+	case 16: return (void*)cpu->get_halt();
+	}
+	return 0;
+}

@@ -39,7 +39,8 @@ add_executable (${PROJECT_NAME} ${SRC})
 
 if(WIN32)
 	find_package(SDL2 CONFIG REQUIRED)
-	target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2 SDL2::SDL2main)
+	find_package(sdl2-gfx CONFIG REQUIRED)
+	target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2 SDL2::SDL2main SDL2::SDL2_gfx)
 endif()
 
 if(UNIX)
@@ -47,7 +48,7 @@ if(UNIX)
 	set(SDL2_DIR ${CMAKE_MODULE_PATH} ${SYSROOT}/usr/lib/cmake/SDL2)
 	find_package(SDL2 REQUIRED)
 	include_directories(${SDL2_INCLUDE_DIRS})
-    target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2 SDL2::SDL2main glad)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2 SDL2::SDL2main)
 	
 	add_custom_command(
 		TARGET ${PROJECT_NAME} POST_BUILD 

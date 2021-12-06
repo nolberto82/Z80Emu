@@ -30,6 +30,22 @@ bool SDLGfx::init(Memory* mem)
 		return false;
 	}
 
+	aspec.freq = 44100;
+	aspec.format = AUDIO_U8;
+	aspec.channels = 1;
+	aspec.samples = 1024;
+	aspec.callback = nullptr;
+
+	adevice = SDL_OpenAudioDevice(NULL, 0, &aspec, NULL, 0);
+
+	if (!adevice)
+	{
+		printf("Failed to create renderer: %s\n", SDL_GetError());
+		return false;
+	}
+
+	SDL_PauseAudioDevice(adevice, 0);
+
 	ImGui::CreateContext();
 	ImGuiSDL::Initialize(renderer, 1440, 1000);
 	ImGui_ImplSDL2_InitForSDLRenderer(window);
@@ -46,18 +62,12 @@ bool SDLGfx::init(Memory* mem)
 	style->Colors[ImGuiCol_CheckMark] = ImVec4(0, 0, 0, 1);
 	style->FrameBorderSize = 1.10f;
 
-	/*	spr_offsets[0].x = 8; spr_offsets[0].y = 12;
-		spr_offsets[1].x = 8; spr_offsets[1].y = 12;
-		spr_offsets[2].x = 8; spr_offsets[2].y = 12;
-		spr_offsets[3].x = 8; spr_offsets[3].y = 12;
-		spr_offsets[4].x = 8; spr_offsets[4].y = 12;
-		spr_offsets[5].x = 8; spr_offsets[5].y = 12;
-		spr_offsets[6].x = 8; spr_offsets[6].y = 12;
-		spr_offsets[7].x = 8; spr_offsets[7].y = 12;*/
-
 	create_texture();
 
 	decode_graphics(mem);
+
+	SDL_initFramerate(&fpsman);
+	SDL_setFramerate(&fpsman, 60);
 
 	return true;
 }
@@ -154,7 +164,7 @@ void SDLGfx::render_display(Memory* mem)
 
 void SDLGfx::render_sprites(Memory* mem)
 {
-	for (int i = 0; i < 8; i++)
+	for (int i = 7; i > 0; i--)
 	{
 		u8 sprite_id = mem->ram[0x4ff0 + i * 2] >> 2;
 		bool sprite_flipx = mem->ram[0x4ff0 + i * 2] & 0x02;
@@ -284,7 +294,7 @@ void SDLGfx::draw_sprites(Memory* mem, int x, int y, int i, u8 palid, int flipx,
 			u8 pal = pl[pix];
 			u8 col = mem->colors[pal];
 
-			if (pix == 0)
+			if (col == 0)
 				continue;
 
 			int fx = flipx ? 15 - xx : xx;
@@ -497,7 +507,7 @@ void SDLGfx::end_frame()
 	// Rendering
 	ImGui::Render();
 	ImGuiSDL::Render(ImGui::GetDrawData());
-
+	SDL_framerateDelay(&fpsman);
 	SDL_RenderPresent(renderer);
 }
 
@@ -506,6 +516,8 @@ void SDLGfx::update_input(int& running, ImGuiIO io)
 	int wheel = 0;
 
 	SDL_Event e;
+
+	//memset(keystick1, 0, sizeof(keystick1));
 
 	while (SDL_PollEvent(&e))
 	{
@@ -523,6 +535,58 @@ void SDLGfx::update_input(int& running, ImGuiIO io)
 		else if (e.type == SDL_MOUSEWHEEL)
 		{
 			wheel = e.wheel.y;
+		}
+		else if (e.type == SDL_KEYDOWN && e.key.repeat == 0)
+		{
+			switch (e.key.keysym.sym)
+			{
+				case SDLK_UP:
+					keystick1[0] = 1;
+					break;
+				case SDLK_LEFT:
+					keystick1[1] = 1;
+					break;
+				case SDLK_RIGHT:
+					keystick1[2] = 1;
+					break;
+				case SDLK_DOWN:
+					keystick1[3] = 1;
+					break;
+				case SDLK_RETURN:
+					keystick1[5] = 1;
+					keystick2[5] = 1;
+					break;
+
+				case SDLK_SPACE:
+					keystick1[7] = 1;
+					break;
+			}
+		}
+		else if (e.type == SDL_KEYUP && e.key.repeat == 0)
+		{
+			switch (e.key.keysym.sym)
+			{
+				case SDLK_UP:
+					keystick1[0] = 0;
+					break;
+				case SDLK_LEFT:
+					keystick1[1] = 0;
+					break;
+				case SDLK_RIGHT:
+					keystick1[2] = 0;
+					break;
+				case SDLK_DOWN:
+					keystick1[3] = 0;
+					break;
+				case SDLK_RETURN:
+					keystick1[5] = 0;
+					keystick2[5] = 0;
+					break;
+
+				case SDLK_SPACE:
+					keystick1[7] = 0;
+					break;
+			}
 		}
 	}
 
@@ -562,6 +626,7 @@ void SDLGfx::clean()
 {
 	ImGuiSDL::Deinitialize();
 
+	SDL_CloseAudioDevice(adevice);
 	SDL_DestroyTexture(tile.texture);
 	SDL_DestroyTexture(display.texture);
 	SDL_DestroyTexture(chars.texture);

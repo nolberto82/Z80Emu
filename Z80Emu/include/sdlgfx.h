@@ -10,8 +10,11 @@
 
 #include <SDL2/SDL.h>
 #include <SDL_image.h>
+#include <SDL2_framerate.h>
 
 #include "mem.h"
+
+const int sound_freq = 3072000 / 60;
 
 struct texture_t
 {
@@ -53,7 +56,7 @@ public:
 	SDL_Texture* get_chars() { return chars.texture; };
 	SDL_Window* get_window();
 	SDL_Renderer* get_renderer();
- 
+
 	void clean();
 
 	void update_tile16()
@@ -62,9 +65,13 @@ public:
 		SDL_RenderCopy(renderer, chars.texture, NULL, NULL);
 	}
 
+	static u8* get_joystick_one() { return keystick1; }
+	static u8* get_joystick_two() { return keystick2; }
+
 private:
 	Memory* mem;
 
+	FPSmanager fpsman;
 	SDL_Renderer* renderer = nullptr;
 	SDL_Window* window = nullptr;
 	SDL_Texture* font = nullptr;
@@ -82,5 +89,11 @@ private:
 	const char* title = "";
 	int width = 0;
 	int height = 0;
+
+	SDL_AudioSpec aspec;
+	SDL_AudioDeviceID adevice;
+
+	inline static u8 keystick1[8];
+	inline static u8 keystick2[8];
 };
 

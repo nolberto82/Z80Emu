@@ -23,7 +23,7 @@ int main(int argc, char* argv[])
 		rom_loaded = false;
 	mem->set_test_number(0);
 #else
-	if (!mem->load_roms())
+	if (!mem->load_roms(cgame::pacmidway))
 		rom_loaded = false;
 #endif
 

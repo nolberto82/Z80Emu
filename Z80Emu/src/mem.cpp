@@ -1,24 +1,54 @@
 #include "mem.h"
 #include <sdlgfx.h>
 
-bool Memory::load_roms()
+bool Memory::load_roms(int gameid)
 {
-	if (!load_file("roms/pacman.6e", ram, 0x0000))
-		return false;
-	if (!load_file("roms/pacman.6f", ram, 0x1000))
-		return false;
-	if (!load_file("roms/pacman.6h", ram, 0x2000))
-		return false;
-	if (!load_file("roms/pacman.6j", ram, 0x3000))
-		return false;
-	if (!load_file("roms/pacman.5e", tiles, 0x0000))
-		return false;
-	if (!load_file("roms/pacman.5f", sprites, 0x0000))
-		return false;
-	if (!load_file("roms/82s123.7f", colors, 0x0000))
-		return false;
-	if (!load_file("roms/82s126.4a", palettes, 0x0000))
-		return false;
+	switch (gameid)
+	{
+		case 0:
+			if (!load_file("roms/pacman.6e", ram, 0x0000))
+				return false;
+			if (!load_file("roms/pacman.6f", ram, 0x1000))
+				return false;
+			if (!load_file("roms/pacman.6h", ram, 0x2000))
+				return false;
+			if (!load_file("roms/pacman.6j", ram, 0x3000))
+				return false;
+			if (!load_file("roms/pacman.5e", tiles, 0x0000))
+				return false;
+			if (!load_file("roms/pacman.5f", sprites, 0x0000))
+				return false;
+			if (!load_file("roms/82s123.7f", colors, 0x0000))
+				return false;
+			if (!load_file("roms/82s126.4a", palettes, 0x0000))
+				return false;
+			break;
+		case 1:
+			if (!load_file("roms/mspac/pacman.6e", ram, 0x0000))
+				return false;
+			if (!load_file("roms/mspac/pacman.6f", ram, 0x1000))
+				return false;
+			if (!load_file("roms/mspac/pacman.6h", ram, 0x2000))
+				return false;
+			if (!load_file("roms/mspac/pacman.6j", ram, 0x3000))
+				return false;
+			if (!load_file("roms/mspac/5e", tiles, 0x0000))
+				return false;
+			if (!load_file("roms/mspac/5f", sprites, 0x0000))
+				return false;
+			if (!load_file("roms/mspac/82s123.7f", colors, 0x0000))
+				return false;
+			if (!load_file("roms/mspac/82s126.4a", palettes, 0x0000))
+				return false;
+			if (!load_file("roms/mspac/u5", ram, 0x8000))
+				return false;
+			if (!load_file("roms/mspac/u6", ram, 0x9800))
+				return false;
+			if (!load_file("roms/mspac/u7", ram, 0x9000))
+				return false;
+			break;
+	}
+
 
 	return true;
 }
@@ -41,31 +71,8 @@ bool Memory::load_test()
 
 	cpu->resstr = "";
 
-	//ram[0x0000] = 0xd3;
-	//ram[0x0001] = 0x00;
-	//ram[0x0005] = 0xdb;
-	//ram[0x0006] = 0x00;
-	//ram[0x0007] = 0xc9;
-
 	return true;
 }
-
-//bool Memory::load_test_tap()
-//{
-//	std::fill(ram.begin(), ram.end(), 0x00);
-//	std::fill(ports.begin(), ports.end(), 0x00);
-//
-//	if (!load_file("testfiles/z80doc.tap", ram, 0x8000))
-//		return false;
-//
-//	//set_test_number(0);
-//
-//	reset();
-//
-//
-//
-//	return true;
-//}
 
 bool Memory::load_file(const char* filename, std::vector<u8>& rom, int offset)
 {
@@ -119,12 +126,41 @@ u8 Memory::rb(u16 addr, bool opcode)
 {
 	if (!opcode)
 		cpu->set_read_addr(addr);
-	return ram[addr];
-}
 
-u8* Memory::read_byte_ptr(u16 addr)
-{
-	return &ram[addr];
+	if (addr == 0x5000)
+	{
+		u8* keys = SDLGfx::get_joystick_one();
+		u8 v = 0xff;
+
+		for (int i = 0; i < 8; i++)
+		{
+			if (keys[i])
+			{
+				v = ~(keys[i] << i);
+				//cpu->set_state(cstate::debugging);
+			}
+		}
+
+		return v;
+	}
+	else if (addr == 0x5040)
+	{
+		u8* keys = SDLGfx::get_joystick_two();
+		u8 v = 0xff;
+
+		for (int i = 0; i < 8; i++)
+		{
+			if (keys[i])
+			{
+				v = ~(keys[i] << i);
+				//cpu->set_state(cstate::debugging);
+			}
+		}
+
+		return v;
+	}
+
+	return ram[addr];
 }
 
 u16 Memory::rw(u16 addr)
@@ -134,17 +170,6 @@ u16 Memory::rw(u16 addr)
 
 	return ram[addr + 1] << 8 | ram[addr];
 }
-
-u16* Memory::read_word_ptr(u16 addr)
-{
-
-	cpu->set_read_addr(addr);
-
-	u16 res = rw(addr);
-
-	return &res;
-}
-
 
 void Memory::wb(u16 addr, u8 v)
 {

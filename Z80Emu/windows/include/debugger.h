@@ -14,18 +14,18 @@ class Breakpoint;
 class SDLGfx;
 class GLGfx;
 
-	typedef struct
-	{
-		u16 offset;
-		std::string name;
-		std::string oper;
-		std::string pctext;
-		std::string regtext;
-		std::string dtext;
-		std::string bytetext;
-		std::string looptext;
-		int size;
-	}disasmentry;
+typedef struct
+{
+	u16 offset;
+	std::string name;
+	std::string oper;
+	std::string pctext;
+	std::string regtext;
+	std::string dtext;
+	std::string bytetext;
+	std::string looptext;
+	int size;
+}disasmentry;
 
 class Debugger
 {

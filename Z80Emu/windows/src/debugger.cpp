@@ -72,7 +72,7 @@ void Debugger::step()
 							<< e.dtext
 							<< "\n";
 					}
-		}
+				}
 #else
 				//logger(pc);
 				char text[TEXTSIZE] = { 0 };
@@ -89,7 +89,7 @@ void Debugger::step()
 						<< "\n";
 				}
 #endif // RUN_TESTS
-	}
+			}
 
 			cpu->step();
 
@@ -97,18 +97,10 @@ void Debugger::step()
 			get_test_messages();
 #endif // RUN_TESTS
 
-}
+		}
 
 		*cycles -= CYCLES_PER_FRAME / divide;
 	}
-}
-
-void Debugger::update_gl()
-{
-	//if (!gl->init())
-	//	return;
-
-	//gl->update();
 }
 
 void Debugger::update()
@@ -151,21 +143,6 @@ void Debugger::update()
 			ImGui::End();
 		}
 
-		if (ImGui::Begin("Display", NULL))
-		{
-			ImVec2 tsize = ImGui::GetContentRegionAvail();
-			ImGui::Image((void*)sdl->get_display(), tsize/*ImVec2(224, 288)*/);
-		}
-		ImGui::End();
-
-		//if (ImGui::Begin("Tile8x4", NULL))
-		//{
-		//	ImVec2 tsize = ImGui::GetContentRegionAvail();
-		//	sdl->update_tile16();
-		//	ImGui::Image((void*)sdl->get_chars(), tsize);
-		//}
-		//ImGui::End();
-
 		if (ImGui::Begin("Sprite Info", NULL))
 		{
 			ImVec2 tsize = ImGui::GetContentRegionAvail();
@@ -189,16 +166,14 @@ void Debugger::update()
 
 		if (ImGui::Begin("Tests Info", nullptr))
 		{
-			//int i = 0;
-
-			////std::sort(test_result.begin(), test_result.end());
-			//test_result.erase(std::unique(test_result.begin(), test_result.end()), test_result.end());
-
-			//for (auto& e : test_result)
-			//{
-			//	ImGui::Text(e.c_str());
-			//}
 			ImGui::Text(cpu->resstr.c_str());
+		}
+		ImGui::End();
+
+		if (ImGui::Begin("Display", NULL))
+		{
+			ImVec2 tsize = ImGui::GetContentRegionAvail();
+			ImGui::Image((void*)sdl->get_display(), tsize/*ImVec2(224, 288)*/);
 		}
 		ImGui::End();
 
@@ -211,6 +186,7 @@ void Debugger::gui(ImGuiIO io)
 	static u16 inputaddr = 0;
 	static bool is_jump = false;
 	u16 pc = is_jump ? inputaddr : cpu->pc;;
+
 
 	show_disassembly(pc);
 	show_registers();
@@ -597,9 +573,10 @@ void Debugger::show_buttons(u16 pc, u16& inputaddr, bool& is_jump, ImGuiIO io)
 			is_jump = false;
 			cpu->set_state(cstate::debugging);
 			//std::vector<std::string>().swap(test_result);
-	}
+		}
 
 		ImGui::SameLine();
+
 
 		if (ImGui::Button("Step Into", ImVec2(80, 0)))
 		{
@@ -615,6 +592,7 @@ void Debugger::show_buttons(u16 pc, u16& inputaddr, bool& is_jump, ImGuiIO io)
 		}
 
 		ImGui::SameLine();
+
 
 #if RUN_TESTS
 		ImGui::BeginDisabled(true);
@@ -732,7 +710,6 @@ void Debugger::show_buttons(u16 pc, u16& inputaddr, bool& is_jump, ImGuiIO io)
 
 		ImGui::PopItemWidth();
 #endif
-
 		ImGui::SameLine(0, 5);
 
 		ImGui::Checkbox("Show Tiles/Sprites", &showtiles);
@@ -742,7 +719,7 @@ void Debugger::show_buttons(u16 pc, u16& inputaddr, bool& is_jump, ImGuiIO io)
 		ImGui::Text("%s: %f", "FPS", io.Framerate);
 
 		ImGui::End();
-}
+	}
 }
 
 void Debugger::logger(u16 pc)
@@ -921,22 +898,22 @@ u16 Debugger::get_reg_value(int i)
 {
 	switch (i)
 	{
-	case 0: return cpu->pc;
-	case 1: return cpu->sp;
-	case 2: return cpu->af;
-	case 3: return cpu->bc;
-	case 4: return cpu->de;
-	case 5: return cpu->hl;
-	case 6: return cpu->ix;
-	case 7: return cpu->iy;
-	case 8: return cpu->saf;
-	case 9: return cpu->sbc;
-	case 10: return cpu->sde;
-	case 11: return cpu->shl;
-	case 12: return cpu->wz;
-	case 13: return cpu->i;
-		//case 14: return cpu->get_im();
-		//case 15: return cpu->regt.shl;
+		case 0: return cpu->pc;
+		case 1: return cpu->sp;
+		case 2: return cpu->af;
+		case 3: return cpu->bc;
+		case 4: return cpu->de;
+		case 5: return cpu->hl;
+		case 6: return cpu->ix;
+		case 7: return cpu->iy;
+		case 8: return cpu->saf;
+		case 9: return cpu->sbc;
+		case 10: return cpu->sde;
+		case 11: return cpu->shl;
+		case 12: return cpu->wz;
+		case 13: return cpu->i;
+			//case 14: return cpu->get_im();
+			//case 15: return cpu->regt.shl;
 	}
 	return 0;
 }
@@ -954,36 +931,18 @@ void Debugger::get_test_messages()
 
 		switch (cpu->c)
 		{
-		case 2:
-		//crcstr += (char)cpu->e;
-		break;
-		case 9:
-		u16 addr = cpu->de;
+			case 2:
+				//crcstr += (char)cpu->e;
+				break;
+			case 9:
+				u16 addr = cpu->de;
 
-		//if (addr == 0x1dda)
-		//	return;
+				//if (addr == 0x1dda)
+				//	return;
 
-		if (addr == 0x1df6)
-			cpu->set_state(cstate::debugging);
-
-		//while (1)
-		//{
-		//	char c = mem->rb(addr);
-
-		//	if (c == '$')
-		//		break;
-
-		//	resstr += c;
-
-		//	addr++;
-
-		//}
-		break;
+				if (addr == 0x1df6)
+					cpu->set_state(cstate::debugging);
+				break;
 		}
-
-		//if (resstr != "")
-		//	test_result.push_back(resstr);
-		//if (cpu->crcstr != "")
-		//	test_result.push_back(crcstr);
 	}
 }

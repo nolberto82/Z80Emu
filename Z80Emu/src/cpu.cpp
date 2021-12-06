@@ -4051,57 +4051,56 @@ void Cpu::exec_ddfd(u8 op, u8 b1, u16 reg)
 
 	case 0x06:
 	{
-
-		rot_wb_ix(op_rlc(mem->rb(wz)));
+		mem->wb(wz,op_rlc(mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0x0e:
 	{
-		rot_wb_ix(op_rrc(mem->rb(wz)));
+		mem->wb(wz,op_rrc(mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0x16:
 	{
-		rot_wb_ix(op_rl(mem->rb(wz)));
+		mem->wb(wz,op_rl(mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0x1e:
 	{
-		rot_wb_ix(op_rr(mem->rb(wz)));
+		mem->wb(wz,op_rr(mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0x26:
 	{
-		rot_wb_ix(op_sla(mem->rb(wz)));
+		mem->wb(wz,op_sla(mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0x2e:
 	{
-		rot_wb_ix(op_sra(mem->rb(wz)));
+		mem->wb(wz,op_sra(mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0x36:
 	{
-		rot_wb_ix(op_sll(mem->rb(wz)));
+		mem->wb(wz,op_sll(mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0x3e:
 	{
-		rot_wb_ix(op_srl(mem->rb(wz)));
+		mem->wb(wz,op_srl(mem->rb(wz)));
 		advance(op);
 		break;
 	}
@@ -4165,112 +4164,112 @@ void Cpu::exec_ddfd(u8 op, u8 b1, u16 reg)
 
 	case 0x86:
 	{
-		rot_wb_ix(op_res(0, mem->rb(wz)));
+		mem->wb(wz,op_res(0, mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0x8e:
 	{
-		rot_wb_ix(op_res(1, mem->rb(wz)));
+		mem->wb(wz,op_res(1, mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0x96:
 	{
-		rot_wb_ix(op_res(2, mem->rb(wz)));
+		mem->wb(wz,op_res(2, mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0x9e:
 	{
-		rot_wb_ix(op_res(3, mem->rb(wz)));
+		mem->wb(wz,op_res(3, mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0xa6:
 	{
-		rot_wb_ix(op_res(4, mem->rb(wz)));
+		mem->wb(wz,op_res(4, mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0xae:
 	{
-		rot_wb_ix(op_res(5, mem->rb(wz)));
+		mem->wb(wz,op_res(5, mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0xb6:
 	{
-		rot_wb_ix(op_res(6, mem->rb(wz)));
+		mem->wb(wz,op_res(6, mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0xbe:
 	{
-		rot_wb_ix(op_res(7, mem->rb(wz)));
+		mem->wb(wz,op_res(7, mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0xc6:
 	{
-		rot_wb_ix(op_set(0, mem->rb(wz)));
+		mem->wb(wz,op_set(0, mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0xce:
 	{
-		rot_wb_ix(op_set(1, mem->rb(wz)));
+		mem->wb(wz,op_set(1, mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0xd6:
 	{
-		rot_wb_ix(op_set(2, mem->rb(wz)));
+		mem->wb(wz,op_set(2, mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0xde:
 	{
-		rot_wb_ix(op_set(3, mem->rb(wz)));
+		mem->wb(wz,op_set(3, mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0xe6:
 	{
-		rot_wb_ix(op_set(4, mem->rb(wz)));
+		mem->wb(wz,op_set(4, mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0xee:
 	{
-		rot_wb_ix(op_set(5, mem->rb(wz)));
+		mem->wb(wz,op_set(5, mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0xf6:
 	{
-		rot_wb_ix(op_set(6, mem->rb(wz)));
+		mem->wb(wz,op_set(6, mem->rb(wz)));
 		advance(op);
 		break;
 	}
 
 	case 0xfe:
 	{
-		rot_wb_ix(op_set(7, mem->rb(wz)));
+		mem->wb(wz,op_set(7, mem->rb(wz)));
 		advance(op);
 		break;
 	}
@@ -5239,18 +5238,6 @@ void Cpu::advance(u8 op)
 {
 	add_cyc(op);
 	add_pc(op);
-}
-
-void Cpu::rot_wb_ix(u8 v)
-{
-	u16 a = get_addr(ix, pc + 2);
-	mem->wb(a, v);
-}
-
-void Cpu::rot_wb_iy(u8 v)
-{
-	u16 a = get_addr(iy, pc + 2);
-	mem->wb(a, v);
 }
 
 void Cpu::reset()

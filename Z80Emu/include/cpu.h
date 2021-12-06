@@ -268,8 +268,13 @@ private:
 	bool get_parity(u8 op);
 	u16 get_addr(u16 a1, u16 a2);
 	void advance(u8 op);
-	void rot_wb_ix(u8 v);
-	void rot_wb_iy(u8 v);
+};
+
+enum cgame
+{
+	pacmidway,
+	mspacman,
+	pacnamco
 };
 
 enum cstate

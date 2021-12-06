@@ -1,5 +1,4 @@
 #include "debugger.h"
-#include "registers.h"
 
 void Debugger::step()
 {
@@ -15,26 +14,31 @@ void Debugger::step()
 	{
 		while (*cycles < (CYCLES_PER_FRAME / divide))
 		{
-			u16 pc = cpu->r.pc;
+			u16 pc = cpu->pc;
 
 			for (auto it : bpk->get_breakpoints())
 			{
-				if (bpk->check(pc, it.enabled))
+				if (it.type == bp_exec)
 				{
-					*state = cstate::debugging;
-					return;
+					if (bpk->check(pc, bp_exec, it.enabled))
+					{
+						*state = cstate::debugging;
+						lineoffset = -6;
+						return;
+					}
 				}
 
-				if (bpk->check(pc, it.enabled))
-				{
-					*state = cstate::debugging;
-					return;
-				}
+				//if (bpk->check(pc, it.enabled))
+				//{
+				//	*state = cstate::debugging;
+				//	return;
+				//}
 
 				if (bpk->check_access(cpu->get_write_addr(), bp_write, it.enabled))
 				{
 					*state = cstate::debugging;
 					cpu->set_write_addr(0);
+					lineoffset = -6;
 					return;
 				}
 
@@ -52,7 +56,7 @@ void Debugger::step()
 			if (logging)
 			{
 #if RUN_TESTS
-				if (cpu->r.pc == 0x1d42 || cpu->r.pc == 0x1d44 || cpu->r.pc == 0x1d46)
+				if (cpu->pc == 0x1d42 || cpu->pc == 0x1d46)
 				{
 					//logger(pc);
 					char text[TEXTSIZE] = { 0 };
@@ -68,7 +72,7 @@ void Debugger::step()
 							<< e.dtext
 							<< "\n";
 					}
-				}
+		}
 #else
 				//logger(pc);
 				char text[TEXTSIZE] = { 0 };
@@ -85,7 +89,7 @@ void Debugger::step()
 						<< "\n";
 				}
 #endif // RUN_TESTS
-			}
+	}
 
 			cpu->step();
 
@@ -93,7 +97,7 @@ void Debugger::step()
 			get_test_messages();
 #endif // RUN_TESTS
 
-		}
+}
 
 		*cycles -= CYCLES_PER_FRAME / divide;
 	}
@@ -205,18 +209,17 @@ void Debugger::update()
 void Debugger::gui(ImGuiIO io)
 {
 	static u16 inputaddr = 0;
-	static int lineoffset = 0;
 	static bool is_jump = false;
-	u16 pc = is_jump ? inputaddr : cpu->r.pc;;
+	u16 pc = is_jump ? inputaddr : cpu->pc;;
 
-	show_disassembly(pc, lineoffset);
+	show_disassembly(pc);
 	show_registers();
 	show_memory();
 	show_breakpoints();
-	show_buttons(pc, inputaddr, lineoffset, is_jump, io);
+	show_buttons(pc, inputaddr, is_jump, io);
 }
 
-void Debugger::show_disassembly(u16 pc, int& lineoffset)
+void Debugger::show_disassembly(u16 pc)
 {
 	char text[TEXTSIZE] = { 0 };
 	u16 currpc = pc;
@@ -242,7 +245,7 @@ void Debugger::show_disassembly(u16 pc, int& lineoffset)
 	}
 
 	if (lineoffset == 0)
-		ImGui::SetScrollHereY(1);
+		ImGui::SetScrollHereY(0.5f);
 
 	if (ImGui::GetWindowPos().y < 65)
 		ImGui::SetWindowPos(ImVec2(ImGui::GetWindowPos().x, 65));
@@ -339,14 +342,14 @@ void Debugger::show_registers()
 		char flags[9] = { "........" };
 		char text[32] = "";
 
-		flags[7] = cpu->r.f & FC ? 'C' : '.';
-		flags[6] = cpu->r.f & FN ? 'N' : '.';
-		flags[5] = cpu->r.f & FP ? 'P' : '.';
-		flags[4] = cpu->r.f & FX ? 'X' : '.';
-		flags[3] = cpu->r.f & FH ? 'H' : '.';
-		flags[2] = cpu->r.f & FY ? 'Y' : '.';
-		flags[1] = cpu->r.f & FZ ? 'Z' : '.';
-		flags[0] = cpu->r.f & FS ? 'S' : '.';
+		flags[7] = cpu->f & FC ? 'C' : '.';
+		flags[6] = cpu->f & FN ? 'N' : '.';
+		flags[5] = cpu->f & FP ? 'P' : '.';
+		flags[4] = cpu->f & FX ? 'X' : '.';
+		flags[3] = cpu->f & FH ? 'H' : '.';
+		flags[2] = cpu->f & FY ? 'Y' : '.';
+		flags[1] = cpu->f & FZ ? 'Z' : '.';
+		flags[0] = cpu->f & FS ? 'S' : '.';
 
 		ImGui::TableSetupColumn("regnames", ImGuiTableColumnFlags_WidthFixed, 80.0f);
 		ImGui::TableSetupColumn("regvalues", ImGuiTableColumnFlags_WidthFixed, 80);
@@ -368,7 +371,7 @@ void Debugger::show_registers()
 			ImGui::TableNextColumn(); ImGui::Text("%11s", reginfo[i].name.c_str());
 			ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, tablecolcolor);
 
-			if (i < 12)
+			if (i < 13)
 			{
 				ImGui::TableNextColumn(); ImGui::Text("%04X", get_reg_value(i));
 			}
@@ -556,7 +559,7 @@ void Debugger::show_breakpoints()
 	ImGui::End();
 }
 
-void Debugger::show_buttons(u16 pc, u16& inputaddr, int& lineoffset, bool& is_jump, ImGuiIO io)
+void Debugger::show_buttons(u16 pc, u16& inputaddr, bool& is_jump, ImGuiIO io)
 {
 	static char inputtext[5] = "";
 	static char testtext[2] = "";
@@ -568,9 +571,10 @@ void Debugger::show_buttons(u16 pc, u16& inputaddr, int& lineoffset, bool& is_ju
 
 		if (ImGui::Button("Run", ImVec2(80, 0)))
 		{
+			cpu->resstr = "";
 			cpu->step();
 			stepping = false;
-			lineoffset = -6;
+			lineoffset = 0;
 			is_jump = false;
 			*cpu->get_state() = cstate::running;
 			std::vector<std::string>().swap(test_result);
@@ -593,7 +597,7 @@ void Debugger::show_buttons(u16 pc, u16& inputaddr, int& lineoffset, bool& is_ju
 			is_jump = false;
 			cpu->set_state(cstate::debugging);
 			//std::vector<std::string>().swap(test_result);
-		}
+	}
 
 		ImGui::SameLine();
 
@@ -601,7 +605,7 @@ void Debugger::show_buttons(u16 pc, u16& inputaddr, int& lineoffset, bool& is_ju
 		{
 			cpu->step();
 			stepping = true;
-			lineoffset = -6;
+			lineoffset = 0;
 			is_jump = false;
 			cpu->set_state(cstate::debugging);
 
@@ -632,7 +636,7 @@ void Debugger::show_buttons(u16 pc, u16& inputaddr, int& lineoffset, bool& is_ju
 					u16 retpc = pc + dasm.size;
 					cpu->set_state(cstate::running);
 
-					while (cpu->r.pc != retpc)
+					while (cpu->pc != retpc)
 					{
 						cpu->step();
 
@@ -648,7 +652,7 @@ void Debugger::show_buttons(u16 pc, u16& inputaddr, int& lineoffset, bool& is_ju
 
 			cpu->set_state(cstate::debugging);
 			stepping = true;
-			lineoffset = -6;
+			lineoffset = 0;
 			is_jump = false;
 		}
 
@@ -738,7 +742,7 @@ void Debugger::show_buttons(u16 pc, u16& inputaddr, int& lineoffset, bool& is_ju
 		ImGui::Text("%s: %f", "FPS", io.Framerate);
 
 		ImGui::End();
-	}
+}
 }
 
 void Debugger::logger(u16 pc)
@@ -866,6 +870,9 @@ std::vector<disasmentry> Debugger::disasm(const char* text, u16 pc, bool get_reg
 			snprintf(temp, TEXTSIZE, reginfo[i].format.c_str(), reginfo[i].name, get_reg_value(i));
 			e.regtext += temp;
 		}
+
+		snprintf(temp, TEXTSIZE, reginfo[12].format.c_str(), reginfo[12].name, get_reg_value(12));
+		e.regtext += temp;
 	}
 
 	e.name = name;
@@ -914,20 +921,20 @@ u16 Debugger::get_reg_value(int i)
 {
 	switch (i)
 	{
-	case 0: return cpu->r.pc;
-	case 1: return cpu->r.sp;
-	case 2: return cpu->r.af;
-	case 3: return cpu->r.bc;
-	case 4: return cpu->r.de;
-	case 5: return cpu->r.hl;
-	case 6: return cpu->r.ix;
-	case 7: return cpu->r.iy;
-	case 8: return cpu->r.saf;
-	case 9: return cpu->r.sbc;
-	case 10: return cpu->r.sde;
-	case 11: return cpu->r.shl;
-	case 12: return cpu->r.r;
-	case 13: return cpu->r.i;
+	case 0: return cpu->pc;
+	case 1: return cpu->sp;
+	case 2: return cpu->af;
+	case 3: return cpu->bc;
+	case 4: return cpu->de;
+	case 5: return cpu->hl;
+	case 6: return cpu->ix;
+	case 7: return cpu->iy;
+	case 8: return cpu->saf;
+	case 9: return cpu->sbc;
+	case 10: return cpu->sde;
+	case 11: return cpu->shl;
+	case 12: return cpu->wz;
+	case 13: return cpu->i;
 		//case 14: return cpu->get_im();
 		//case 15: return cpu->regt.shl;
 	}
@@ -936,42 +943,42 @@ u16 Debugger::get_reg_value(int i)
 
 void Debugger::get_test_messages()
 {
-	if (cpu->r.pc == 0x0000)
+	if (cpu->pc == 0x0000)
 	{
 		cpu->set_state(cstate::debugging);
 	}
-	else if (cpu->r.pc == 0x002b)
+	else if (cpu->pc == 0x002b)
 	{
 		char c = mem->rb(0xffff);
 		cpu->resstr += c;
 
-		switch (cpu->r.c)
+		switch (cpu->c)
 		{
 		case 2:
-			//crcstr += (char)cpu->r.e;
-			break;
+		//crcstr += (char)cpu->e;
+		break;
 		case 9:
-			u16 addr = cpu->r.de;
+		u16 addr = cpu->de;
 
-			//if (addr == 0x1dda)
-			//	return;
+		//if (addr == 0x1dda)
+		//	return;
 
-			if (addr == 0x1df6)
-				cpu->set_state(cstate::debugging);
+		if (addr == 0x1df6)
+			cpu->set_state(cstate::debugging);
 
-			//while (1)
-			//{
-			//	char c = mem->rb(addr);
+		//while (1)
+		//{
+		//	char c = mem->rb(addr);
 
-			//	if (c == '$')
-			//		break;
+		//	if (c == '$')
+		//		break;
 
-			//	resstr += c;
+		//	resstr += c;
 
-			//	addr++;
+		//	addr++;
 
-			//}
-			break;
+		//}
+		break;
 		}
 
 		//if (resstr != "")

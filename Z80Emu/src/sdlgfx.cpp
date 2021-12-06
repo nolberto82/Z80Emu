@@ -89,9 +89,9 @@ void SDLGfx::decode_graphics(Memory* mem)
 		decode_sprites(mem, i, pos);
 	}
 
-	//std::ofstream outFile("tilepix.bin", std::ios::binary);
-	//outFile.write((char*)sprite_ids, sizeof(sprite_ids));
-	//outFile.close();
+	std::ofstream outFile("tilepix.bin", std::ios::binary);
+	outFile.write((char*)sprite_ids, sizeof(sprite_ids));
+	outFile.close();
 }
 
 void SDLGfx::render_display(Memory* mem)
@@ -154,26 +154,23 @@ void SDLGfx::render_display(Memory* mem)
 
 void SDLGfx::render_sprites(Memory* mem)
 {
-	for (int i = 7; i >= 0; i--)
+	for (int i = 0; i < 8; i++)
 	{
 		u8 sprite_id = mem->ram[0x4ff0 + i * 2] >> 2;
-		u8 sprite_flipx = (mem->ram[0x4ff0 + i * 2] >> 1 & 0x1);
-		u8 sprite_flipy = mem->ram[0x4ff0 + i * 2] & 0x1;
+		bool sprite_flipx = mem->ram[0x4ff0 + i * 2] & 0x02;
+		bool sprite_flipy = mem->ram[0x4ff0 + i * 2] & 0x01;
 		u8 sprite_pal = mem->ram[0x4ff0 + i * 2 + 1];
 		u8 sprite_x = 224 - mem->sprite_data[i * 2] + 15;
 		u8 sprite_y = 288 - mem->sprite_data[i * 2 + 1] - 16;
 
-		if (sprite_x > 0)
-		{
-			int yu = 0;
-		}
-
 		if (sprite_x < 0)
 			continue;
 
-		draw_sprites(mem, sprite_x , sprite_y, sprite_id, sprite_pal, sprite_flipx, sprite_flipy);
+		draw_sprites(mem, sprite_x, sprite_y, sprite_id, sprite_pal, sprite_flipx, sprite_flipy);
 		//x++;
 	}
+
+	//draw_sprites(mem, 0, 0, 0x24, 5, 0, 0);
 }
 
 void SDLGfx::render_tiles(Memory* mem, bool sprites)
@@ -279,9 +276,9 @@ void SDLGfx::draw_sprites(Memory* mem, int x, int y, int i, u8 palid, int flipx,
 
 	//for (int j = 0; j < 2; j++)
 	//{
-	for (int xx = 0; xx < 16; xx++)
+	for (int yy = 0; yy < 16; yy++)
 	{
-		for (int yy = 0; yy < 16; yy++)
+		for (int xx = 0; xx < 16; xx++)
 		{
 			u8 pix = sprite_ids[offset++];
 			u8 pal = pl[pix];

@@ -21,7 +21,7 @@ public:
 	void add(u16 addr, u8 type);
 	void edit(u16 addr, u8 type, s16 newaddr = -1, bool enabled = true);
 	void remove(u16 addr);
-	bool check(u16 addr, bool enabled);
+	bool check(u16 addr, u8 type, bool enabled);
 	bool check_access(u16 addr, u8 type, bool enabled = false);
 	std::vector<bplist>::iterator find(u16 addr);
 	std::vector<bplist> get_breakpoints();

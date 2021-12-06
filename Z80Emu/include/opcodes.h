@@ -1,7 +1,5 @@
 #pragma once
 
-#include "types.h"
-
 struct disasmdata
 {
 	char* name;
@@ -896,7 +894,7 @@ static struct disasmdata disasm_ed[256] =
 	{ "neg", "N/A", 2,  8,  0 }, //64
 	{ "retn", "N/A", 2, 14,  0 }, //65
 	{ "im", "0", 2,  8,  0 }, //66
-	{ "rrd", "N/A", 2, 18,  0 }, //67
+	{ "rrd", "(hl)", 2, 18,  0 }, //67
 	{ "in", "l,(c)", 2, 12,  0 }, //68
 	{ "out", "(c),l", 2, 12,  0 }, //69
 	{ "adc", "hl,hl", 2, 15,  0 }, //6A
@@ -904,7 +902,7 @@ static struct disasmdata disasm_ed[256] =
 	{ "neg", "N/A", 2,  8,  0 }, //6C
 	{ "retn", "N/A", 2, 14,  0 }, //6D
 	{ "im", "0/1", 2,  8,  0 }, //6E
-	{ "rld", "N/A", 2, 18,  0 }, //6F
+	{ "rld", "(hl)", 2, 18,  0 }, //6F
 	{ "in", "(c)", 2, 12,  0 }, //70
 	{ "out", "(c),0", 2, 12,  0 }, //71
 	{ "sbc", "hl,sp", 2, 15,  0 }, //72

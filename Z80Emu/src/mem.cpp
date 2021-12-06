@@ -30,7 +30,7 @@ bool Memory::load_test()
 
 	if (!load_file("testfiles/interface.bin", ram, 0x0000))
 		return false;
-	if (!load_file("testfiles/zexdoc.com", ram, 0x0100))
+	if (!load_file("testfiles/zexall.bin", ram, 0x0100))
 		return false;
 
 	reset();
@@ -50,22 +50,22 @@ bool Memory::load_test()
 	return true;
 }
 
-bool Memory::load_test_tap()
-{
-	std::fill(ram.begin(), ram.end(), 0x00);
-	std::fill(ports.begin(), ports.end(), 0x00);
-
-	if (!load_file("testfiles/z80doc.tap", ram, 0x8000))
-		return false;
-
-	//set_test_number(0);
-
-	reset();
-
-
-
-	return true;
-}
+//bool Memory::load_test_tap()
+//{
+//	std::fill(ram.begin(), ram.end(), 0x00);
+//	std::fill(ports.begin(), ports.end(), 0x00);
+//
+//	if (!load_file("testfiles/z80doc.tap", ram, 0x8000))
+//		return false;
+//
+//	//set_test_number(0);
+//
+//	reset();
+//
+//
+//
+//	return true;
+//}
 
 bool Memory::load_file(const char* filename, std::vector<u8>& rom, int offset)
 {
@@ -94,8 +94,9 @@ bool Memory::load_file(const char* filename, std::vector<u8>& rom, int offset)
 
 void Memory::reset()
 {
+	cpu->wz = 0x0000;
 #if RUN_TESTS
-	cpu->r.pc = 0x0000;
+	cpu->pc = 0x0000;
 #else
 	std::fill(ram.begin() + 0x4000, ram.end(), 0x00);
 	std::fill(ports.begin(), ports.end(), 0x00);
@@ -110,7 +111,8 @@ void Memory::reset()
 
 void Memory::reset_test()
 {
-	cpu->r.pc = 0x100;
+	cpu->pc = 0x0100;
+	cpu->wz = 0x0000;
 }
 
 u8 Memory::rb(u16 addr, bool opcode)
@@ -155,7 +157,7 @@ void Memory::wb(u16 addr, u8 v)
 	{
 		if (addr == 0x5000)
 			cpu->set_interrupt(v);
-		else if (addr >= 5060 && addr <= 0x506f)
+		else if (addr >= 0x5060 && addr <= 0x506f)
 			sprite_data[addr & 0xf] = v;
 		return;
 	}

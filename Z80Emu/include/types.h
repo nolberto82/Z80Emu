@@ -30,7 +30,7 @@ typedef char s8;
 typedef short s16;
 typedef int s32;
 
-const int APP_WIDTH = 1440;
+const int APP_WIDTH = 1200;
 const int APP_HEIGHT = 950;
 
 #define APP_SCALE 3

@@ -35,11 +35,11 @@ void Breakpoint::remove(u16 addr)
 		breakpoints.erase(it);
 }
 
-bool Breakpoint::check(u16 addr, bool enabled = false)
+bool Breakpoint::check(u16 addr, u8 type, bool enabled = false)
 {
-	auto it = find_if(breakpoints.begin(), breakpoints.end(), [&](const bplist& obj) 
+	auto it = find_if(breakpoints.begin(), breakpoints.end(), [&](const bplist& obj)
 		{
-			return (obj.addr == addr && obj.enabled); //breakpoint on execute
+			return (obj.addr == addr && obj.enabled && obj.type & type); //breakpoint on execute
 		});
 	return it != breakpoints.end();
 }

@@ -14,6 +14,19 @@ class Breakpoint;
 class SDLGfx;
 class GLGfx;
 
+	typedef struct
+	{
+		u16 offset;
+		std::string name;
+		std::string oper;
+		std::string pctext;
+		std::string regtext;
+		std::string dtext;
+		std::string bytetext;
+		std::string looptext;
+		int size;
+	}disasmentry;
+
 class Debugger
 {
 public:
@@ -25,23 +38,23 @@ public:
 		this->cpu = cpu; this->mem = mem; this->bpk = bpk; this->sdl = sdl;;
 
 		mdisasm.emplace(0x00, disasm_00);
-		mdisasm.emplace(0xcb, disasm_cb); 
-		mdisasm.emplace(0xdd, disasm_dd); 
-		mdisasm.emplace(0xed, disasm_ed); 
+		mdisasm.emplace(0xcb, disasm_cb);
+		mdisasm.emplace(0xdd, disasm_dd);
+		mdisasm.emplace(0xed, disasm_ed);
 		mdisasm.emplace(0xfd, disasm_fd);
 	}
 
 	void update_gl();
 	void update();
 
-private:
+public:
 	void step();
 	void gui(ImGuiIO io);
-	void show_disassembly(u16 pc, int& lineoffset);
+	void show_disassembly(u16 pc);
 	void show_registers();
 	void show_memory();
 	void show_breakpoints();
-	void show_buttons(u16 pc, u16& inputaddr, int& lineoffse, bool& is_jump, ImGuiIO io);
+	void show_buttons(u16 pc, u16& inputaddr, bool& is_jump, ImGuiIO io);
 	void logger(u16 pc);
 	std::vector<disasmentry> disasm(const char* text, u16 pc, bool get_registers = false);
 	disasmdata get_disasm_entry(u8 op, u16 pc);
@@ -66,6 +79,7 @@ private:
 	int numloops = 0;
 	int item_id = 0;
 	int test_number = 0;
+	int lineoffset = 0;
 
 	std::vector<std::string> test_result;
 

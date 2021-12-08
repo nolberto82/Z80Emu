@@ -68,12 +68,3 @@ add_custom_command(
                 ${APP_DIR}/${TEST_DIR})
 
 #message(var ${INCLUDE_DIR})
-
-#add_custom_command(
-#		TARGET ${PROJECT_NAME} POST_BUILD 
-#		COMMAND rsync -r --exclude=CMakeFiles ${CMAKE_CURRENT_BINARY_DIR}/ root@192.168.1.159:/storage/roms/ports/PacmanEmu)
-
-#add_custom_command(
-#		TARGET ${PROJECT_NAME} POST_BUILD 
-#		COMMAND ssh -n -f root@192.168.1.159 "cd /storage/roms/ports; ./1app.sh"
-#		COMMAND exit)

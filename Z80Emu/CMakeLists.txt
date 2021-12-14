@@ -49,10 +49,6 @@ if(UNIX)
 	find_package(SDL2 REQUIRED)
 	include_directories(${SDL2_INCLUDE_DIRS})
     target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2 SDL2::SDL2main)
-	
-	add_custom_command(
-		TARGET ${PROJECT_NAME} POST_BUILD 
-		COMMAND rsync -r --exclude=CMakeFiles ${CMAKE_CURRENT_BINARY_DIR}/ root@192.168.1.110:/storage/roms/ports/PacmanEmu)
 endif()
 
 add_custom_command(
